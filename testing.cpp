@@ -42,9 +42,12 @@ int main () {
 
 
     int valToFind = 0;
+    cout << "Rank to find: ";
+    cin >> valToFind;
     
-    myrank(a, 0, asize -1, valToFind);
+    int temp = myrank(a, 0, asize -1, valToFind);
 
+    cout << "The rank of " << valToFind << " is " << temp << endl;
 
     // Stage 1 (Partitioning)
     int n = 0;
@@ -121,26 +124,29 @@ void merge(int * a, int * b, int lasta, int lastb, int * output){
 }
 
 int myrank(int * a, int first, int last, int valToFind){
+    cout << "a = [ ";
+    for (int i = first; i<last; i++)
+        cout << a[i] << ", ";
+    cout << a[last] << " ]" << endl;
+
+
+
     int val = 0;
     double n = last - first + 1;
-    double x = ceil(n/2);
+    int x = ceil(n/2);
+    cout << "n = " << n << endl;
     cout << "x = " << x << endl;
-    if (n = 1){
-        if (valToFind < a[1]) return 0;
+
+    if (n == 1){
+        if (valToFind < a[first]) return 0;
         else return 1;
     }
     // Work In Progress... pg 26 in UZI book
 
-    // else{
-        
-    // }
-    // - if valToFind<B(x)thenRANK(i,B) := RANK(i,B(1,...,x−1))
-    // - if valToFind>B(x)thenRANK(i,B) := x + RANK(i,B(x+1,...,n))
-
-
-
-
-
+    else{
+        if (valToFind<a[first + x -1]) return myrank(a, first, first + x-1,valToFind);
+        if (valToFind>=a[first + x -1]) return first + x - 1 + myrank(a, first + x, last,valToFind);
+    }
     return val;
 }
 
