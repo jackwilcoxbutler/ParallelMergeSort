@@ -7,11 +7,13 @@
 using namespace std;
 
 void mergesort(int * a, int first, int last);
-void merge(int * a, int * b, int lasta, int lastb, int * output = NULL);
+void smerge(int * a, int * b, int lasta, int lastb, int * output = NULL);
 
-//void smerge(int * a, int * b, int lasta, int lastb, int * output = NULL);
+// returns the number of items less than valToFind in array a
 int myrank(int * a, int first, int last, int valToFind);
-//void pmerge(int * a, int * b, int lasta, int lastb, int * output = NULL);
+
+
+void pmerge(int * a, int * b, int lasta, int lastb, int * output = NULL);
 
 int main () {
     int seed =  71911;
@@ -64,17 +66,22 @@ int main () {
     return 0;
 }
 
+void pmerge(int * a, int * b, int lasta, int lastb, int * output)
+{
+    
+}
+
 void mergesort(int * a, int first, int last){
     if (first<last){//if a[] is longer than 1
         int middle = first + (last)/2;
         int lastb = last - middle - 1;
         mergesort(a, first, middle); // recurse first half
         mergesort(&a[middle + 1], 0, lastb); // recurse second half
-        merge(a, &a[middle + 1], middle, lastb, a);// merge two sorted arrays
+        smerge(a, &a[middle + 1], middle, lastb, a);// merge two sorted arrays
     }
     return;
 }
-void merge(int * a, int * b, int lasta, int lastb, int * output){
+void smerge(int * a, int * b, int lasta, int lastb, int * output){
     int indexA = 0;
     int indexB = 0;
     int lenA = lasta + 1;
@@ -122,31 +129,27 @@ void merge(int * a, int * b, int lasta, int lastb, int * output){
 
     delete [] c;
 }
-
+// returns # of items less than value
 int myrank(int * a, int first, int last, int valToFind){
-    cout << "a = [ ";
-    for (int i = first; i<last; i++)
-        cout << a[i] << ", ";
-    cout << a[last] << " ]" << endl;
-
-
-
+    // cout << "a = [ ";
+    // for (int i = first; i<last; i++)
+    //     cout << a[i] << ", ";
+    // cout << a[last] << " ]" << endl;
     int val = 0;
     double n = last - first + 1;
     int x = ceil(n/2);
-    cout << "n = " << n << endl;
-    cout << "x = " << x << endl;
-
+    // cout << "n = " << n << endl;
+    // cout << "x = " << x << endl;
+    // cout << "first = " << first << endl;
+    // cout << "last = " << last << endl;
     if (n == 1){
-        if (valToFind < a[first]) return 0;
-        else return 1;
+        if (valToFind < a[first]) val = 0;
+        else val = 1;
+    } else {
+        if (valToFind<a[first + x -1]) val = myrank(a, first, first + x-1,valToFind);
+        if (valToFind>=a[first + x -1]) val = x + myrank(a, first + x, last,valToFind);
     }
-    // Work In Progress... pg 26 in UZI book
-
-    else{
-        if (valToFind<a[first + x -1]) return myrank(a, first, first + x-1,valToFind);
-        if (valToFind>=a[first + x -1]) return first + x - 1 + myrank(a, first + x, last,valToFind);
-    }
+    // cout << "returning: " << val << endl;
     return val;
 }
 
