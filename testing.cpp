@@ -51,6 +51,11 @@ int main () {
 
     cout << "The rank of " << valToFind << " is " << temp << endl;
 
+    int * output = new int[asize*2];
+    pmerge(a, a, asize-1, asize-1, output);
+
+
+
     // Stage 1 (Partitioning)
     int n = 0;
     
@@ -62,22 +67,51 @@ int main () {
 
 
 
+    delete [] a;
+    delete [] output;
 
     return 0;
 }
 
 void pmerge(int * a, int * b, int lasta, int lastb, int * output)
 {
-    
-}
+    // n -> a 
+    int n = lasta + 1;
+    // m -> b
+    int m = lastb + 1;
 
+    int aGap = log2(n);
+    int bGap = log2(m);
+
+    int aRanksToFind = n/aGap;
+    int bRanksToFind = m/bGap;
+
+    cout << "log2(n) = " << log2(n) << endl;
+    cout << "n = " << n << endl;
+    cout << "aRanksToFind = " << aRanksToFind << endl;
+
+    int  aIndexesToFind[aRanksToFind] = {};
+    for (int i= 0;i<aRanksToFind;i++){
+        aIndexesToFind[i]= i*aGap;
+    }
+
+
+    cout << "a = [ ";
+    for (int i = 0; i<aRanksToFind-1; i++)
+        cout << aIndexesToFind[i] << ", ";
+    cout << aIndexesToFind[aRanksToFind-1] << " ]" << endl;
+
+}
+//first and last are index #s
 void mergesort(int * a, int first, int last){
     if (first<last){//if a[] is longer than 1
-        int middle = first + (last)/2;
-        int lastb = last - middle - 1;
-        mergesort(a, first, middle); // recurse first half
-        mergesort(&a[middle + 1], 0, lastb); // recurse second half
-        smerge(a, &a[middle + 1], middle, lastb, a);// merge two sorted arrays
+        int middle = (first + last)/2;
+        int lastA = middle - first;
+        int firstB = middle + 1;
+        int lastB = last - firstB;
+        mergesort(&a[first], 0, lastA); // recurse first half
+        mergesort(&a[firstB], 0, lastB); // recurse second half
+        smerge(&a[first], &a[firstB], lastA, lastB, &a[first]);// merge two sorted arrays
     }
     return;
 }
@@ -118,13 +152,11 @@ void smerge(int * a, int * b, int lasta, int lastb, int * output){
     // cout << "lenC is " << lenC << endl;
     // cout << "Length of output is " << sizeof(output) <<  endl;
     //copy merged array to output
-    if (output != NULL){
-        for (int i = 0; i < lenC; i++)
+    if (output == NULL){
+        int * output = new int[lenC];
+    }
+    for (int i = 0; i < lenC; i++)
         output[i] = c[i];
-    }
-    else {
-
-    }
     
 
     delete [] c;
