@@ -112,7 +112,7 @@ int main (int argc, char * argv[]){
 
     //Delete
     delete [] a;
-    // delete [] output;
+    delete [] output;
     //delete [] output2;
 
 
