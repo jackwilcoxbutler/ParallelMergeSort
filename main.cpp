@@ -81,9 +81,10 @@ int main (int argc, char * argv[]){
     
 
     int * output = new int[size];
-    for (int i = 0; i < size; i++){
-        output[i] = 0;
-    }
+    
+    // for (int i = 0; i < size; i++){
+    //     output[i] = 0;
+    // }
 
     // if(my_rank == p-1){
     //     cout << "From Process " << p-1 << " : " << endl;
@@ -97,8 +98,8 @@ int main (int argc, char * argv[]){
 
     // // cout << "hello" << endl;
 
-    int output2[size] = {};
-    MPI_Allreduce( output, &output2, size, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    // int output2[size] = {};
+    // MPI_Allreduce( output, &output2, size, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     // //MPI_Allreduce( const void* sendbuf , void* recvbuf , MPI_Count count , MPI_Datatype datatype , MPI_Op op , MPI_Comm comm);
     //cout << "hello" << endl;
 
@@ -106,8 +107,8 @@ int main (int argc, char * argv[]){
         cout << "From Process " << my_rank << " : " << endl;
         cout << "\toutput = [ ";
         for (int x = 0; x<size - 1; x++)
-            cout << output2[x] << ", ";
-        cout << output2[size-1] << " ]" << endl;
+            cout << output[x] << ", ";
+        cout << output[size-1] << " ]" << endl;
     }
 
     //Delete
@@ -132,6 +133,10 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     int n = lasta + 1;
     // m -> b
     int m = lastb + 1;
+
+    if (output == NULL)
+        output = new int[n+m];
+    int output_local[n+m] = {}; 
 
     int aGap = log2(n);
     int bGap = log2(m);
@@ -167,47 +172,57 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     // }
 
     //A elements ranks in B
-    int SRANKA[aRanksToFind] = {};
+    int SRANKA_local[aRanksToFind] = {};
 
     //A elements ranks in B
-    int SRANKB[bRanksToFind] = {};
+    int SRANKB_local[bRanksToFind] = {};
 
 
     for (int i = my_rank; i<aRanksToFind; i+=p){
         int valToFind = a[i * aGap];
         int temp = myrank(b, 0, lastb, valToFind);
-        SRANKA[i] = temp;
-        output[i * aGap + temp] = valToFind;
+        SRANKA_local[i] = temp;
+        output_local[i * aGap + temp] = valToFind;
     }
     
 
     for (int i = my_rank; i<bRanksToFind; i+=p){
         int valToFind = b[i * bGap];
         int temp = myrank(a, 0, lasta, valToFind);
-        SRANKB[i] = temp;
-        output[i * bGap + temp] = valToFind;
+        SRANKB_local[i] = temp;
+        output_local[i * bGap + temp] = valToFind;
     }
-    int SRANKA2[aRanksToFind] = {};
-    MPI_Allreduce(SRANKA, SRANKA2, aRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    int SRANKB2[bRanksToFind] = {};
-    MPI_Allreduce(SRANKB, SRANKB2, bRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    // cout << "SRANKA_local = [ ";
+    // for (int i = 0; i<aRanksToFind-1; i++)
+    //     cout << SRANKA_local[i] << ", ";
+    // cout << SRANKA_local[aRanksToFind-1] << " ]" << endl;
+
+    int SRANKA[aRanksToFind] = {};
+    MPI_Allreduce(SRANKA_local, SRANKA, aRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    int SRANKB[bRanksToFind] = {};
+    MPI_Allreduce(SRANKB_local, SRANKB, bRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     if(my_rank == 0){
         cout << "SRANKA = [ ";
         for (int i = 0; i<aRanksToFind-1; i++)
-            cout << SRANKA2[i] << ", ";
-        cout << SRANKA2[aRanksToFind-1] << " ]" << endl;
+            cout << SRANKA[i] << ", ";
+        cout << SRANKA[aRanksToFind-1] << " ]" << endl;
     }
     if(my_rank == 0){
         cout << "SRANKB = [ ";
         for (int i = 0; i<bRanksToFind-1; i++)
-            cout << SRANKB2[i] << ", ";
-        cout << SRANKB2[bRanksToFind-1] << " ]" << endl;
+            cout << SRANKB[i] << ", ";
+        cout << SRANKB[bRanksToFind-1] << " ]" << endl;
     }
+
+    
+    MPI_Allreduce(&output_local, output, n+m, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     /*
+    Information for creating shapes
     originating array (a/b)
     original index 
     corispoding rank
+    output rank/index
 
     
     
