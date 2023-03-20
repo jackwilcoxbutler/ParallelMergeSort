@@ -82,9 +82,9 @@ int main (int argc, char * argv[]){
 
     int * output = new int[size];
     
-    // for (int i = 0; i < size; i++){
-    //     output[i] = 0;
-    // }
+    for (int i = 0; i < size; i++){
+        output[i] = 0;
+    }
 
     // if(my_rank == p-1){
     //     cout << "From Process " << p-1 << " : " << endl;
@@ -105,7 +105,7 @@ int main (int argc, char * argv[]){
 
     if(my_rank == 0){
         cout << "From Process " << my_rank << " : " << endl;
-        cout << "\toutput = [ ";
+        cout << "\toutput = \t[ ";
         for (int x = 0; x<size - 1; x++)
             cout << output[x] << ", ";
         cout << output[size-1] << " ]" << endl;
@@ -137,6 +137,8 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     if (output == NULL)
         output = new int[n+m];
     int output_local[n+m] = {}; 
+    bool originating_local[n+m] = {};
+    int ogIndex_local[n+m] = {};
 
     int aGap = log2(n);
     int bGap = log2(m);
@@ -182,6 +184,8 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
         int valToFind = a[i * aGap];
         int temp = myrank(b, 0, lastb, valToFind);
         SRANKA_local[i] = temp;
+        originating_local[i * aGap + temp] = 0;
+        ogIndex_local[i * aGap + temp] = i * aGap;
         output_local[i * aGap + temp] = valToFind;
     }
     
@@ -190,6 +194,8 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
         int valToFind = b[i * bGap];
         int temp = myrank(a, 0, lasta, valToFind);
         SRANKB_local[i] = temp;
+        originating_local[i * bGap + temp] = 1;
+        ogIndex_local[i * bGap + temp] = i * bGap;
         output_local[i * bGap + temp] = valToFind;
     }
     // cout << "SRANKA_local = [ ";
@@ -197,29 +203,119 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     //     cout << SRANKA_local[i] << ", ";
     // cout << SRANKA_local[aRanksToFind-1] << " ]" << endl;
 
-    int SRANKA[aRanksToFind] = {};
-    MPI_Allreduce(SRANKA_local, SRANKA, aRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    int SRANKB[bRanksToFind] = {};
-    MPI_Allreduce(SRANKB_local, SRANKB, bRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    // int SRANKA[aRanksToFind] = {};
+    // MPI_Allreduce(SRANKA_local, SRANKA, aRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    // int SRANKB[bRanksToFind] = {};
+    // MPI_Allreduce(SRANKB_local, SRANKB, bRanksToFind, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    if(my_rank == 0){
-        cout << "SRANKA = [ ";
-        for (int i = 0; i<aRanksToFind-1; i++)
-            cout << SRANKA[i] << ", ";
-        cout << SRANKA[aRanksToFind-1] << " ]" << endl;
-    }
-    if(my_rank == 0){
-        cout << "SRANKB = [ ";
-        for (int i = 0; i<bRanksToFind-1; i++)
-            cout << SRANKB[i] << ", ";
-        cout << SRANKB[bRanksToFind-1] << " ]" << endl;
-    }
+    // if(my_rank == 0){
+    //     cout << "SRANKA = [ ";
+    //     for (int i = 0; i<aRanksToFind-1; i++)
+    //         cout << SRANKA[i] << ", ";
+    //     cout << SRANKA[aRanksToFind-1] << " ]" << endl;
+    // }
+    // if(my_rank == 0){
+    //     cout << "SRANKB = [ ";
+    //     for (int i = 0; i<bRanksToFind-1; i++)
+    //         cout << SRANKB[i] << ", ";
+    //     cout << SRANKB[bRanksToFind-1] << " ]" << endl;
+    // }
 
-    
+    bool originating[n+m] = {};
+    int ogIndex[n+m] = {};
     MPI_Allreduce(&output_local, output, n+m, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&originating_local, &originating, n+m, MPI_C_BOOL, MPI_LXOR, MPI_COMM_WORLD);
+    MPI_Allreduce(&ogIndex_local, &ogIndex, n+m, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    if(my_rank == 0){
+        cout << "From Process " << my_rank << " : " << endl;
+        cout << "\toriginating = \t[ ";
+        for (int x = 0; x<n+m - 1; x++)
+            cout << originating[x] << ", ";
+        cout << originating[n+m-1] << " ]" << endl;
+    }
+    if(my_rank == 0){
+        cout << "From Process " << my_rank << " : " << endl;
+        cout << "\togIndex = \t[ ";
+        for (int x = 0; x<n+m - 1; x++)
+            cout << ogIndex[x] << ", ";
+        cout << ogIndex[n+m-1] << " ]" << endl;
+    }
+    if(my_rank == 0){
+        cout << "From Process " << my_rank << " : " << endl;
+        cout << "\toutput = \t[ ";
+        for (int x = 0; x<n+m - 1; x++)
+            cout << output[x] << ", ";
+        cout << output[n+m-1] << " ]" << endl;
+    }
+    int positions[aRanksToFind + bRanksToFind] = {};
+    if(my_rank == 0){
+        int y = 0;
+        for (int x = 0; x<n+m - 1; x++)
+            if (output[x] != 0){
+                positions[y] = x;
+                y++;
+            }
+    }
+    
+    MPI_Bcast(&positions, aRanksToFind + bRanksToFind, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if(my_rank == 0){
+        cout << "From Process " << my_rank << " : " << endl;
+        cout << "\tpositions = \t[ ";
+        for (int x = 0; x<aRanksToFind + bRanksToFind - 1; x++)
+            cout << positions[x] << ", ";
+        cout << positions[aRanksToFind + bRanksToFind-1] << " ]" << endl;
+    }
+    for (int i = my_rank; i<aRanksToFind + bRanksToFind; i+=p){
+        //shape "corners"
+        int a1index, a2index, b1index, b2index;
+        //lines
+
+        int top = positions[i];
+        int bottom;
+        if (i == aRanksToFind + bRanksToFind - 1)
+            bottom = n+m-1;
+        else bottom = positions[i+1];
+        if (bottom - top > 1){
+            if (originating[top] == 1){
+                b1index = ogIndex[top] + 1;
+                a1index = top - ogIndex[top];
+            } else {
+                a1index = ogIndex[top] + 1;
+                b1index = top - ogIndex[top];
+            }
+            if (originating[bottom] == 1){
+                b2index = ogIndex[bottom] - 1;
+                a2index = bottom - ogIndex[bottom] - 1;
+            } else {
+                a2index = ogIndex[bottom] - 1;
+                b2index = bottom - ogIndex[bottom] - 1;
+            }
+            if (i == aRanksToFind + bRanksToFind - 1){
+                a2index = n - 1;
+                b2index = m - 1;
+            }
+            cout << "i = " << i << endl;
+            cout << "top = " << top << endl;
+            cout << "bottom = " << bottom << endl;
+            cout << "b1index = " << b1index << endl;
+            cout << "a1index = " << a1index << endl;
+            cout << "b2index = " << b2index << endl;
+            cout << "a2index = " << a2index << endl;
+            smerge(&a[a1index], &b[b1index], a2index - a1index, b2index - b1index, &output[top + 1]);
+
+        }
+    }
+
+    int temp[n+m] = {};
+    MPI_Allreduce(output, &temp, n+m, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&temp, output, n+m, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
     /*
     Information for creating shapes
-    originating array (a/b)
+
+    originating array (a/b) a = 0, b = 1
     original index 
     corispoding rank
     output rank/index
@@ -254,7 +350,7 @@ void smerge(int * a, int * b, int lasta, int lastb, int * output){
 
     int indexC = 0;
     int lenC = lenA + lenB;
-    int * c = new int[lenC];
+    int c[lenC] = {};
 
     //fill array c with next lowest of a[] and b[]
     while (indexA < lenA && indexB < lenB){
@@ -282,13 +378,11 @@ void smerge(int * a, int * b, int lasta, int lastb, int * output){
     }
 
     //copy merged array back to a
-    if (output == NULL){
-        int * output = new int[lenC];
-    }
+    // if (output == NULL){
+    //     int * output = new int[lenC];
+    // }
     for (int i = 0; i < lenC; i++)
         output[i] = c[i];
-
-    delete [] c;
 }
 
 int myrank(int * a, int first, int last, int valToFind){
