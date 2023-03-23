@@ -9,8 +9,10 @@ using namespace std;
 // mpicxx -o blah file.cpp
 // mpirun -q -np 32 blah
 
-void mergesort(int * a, int first, int last);
+// void mergesort(int * a, int first, int last);
+
 void pmergesort(int * a, int first, int last);
+
 void smerge(int * a, int * b, int lasta, int lastb, int * output = NULL);
 
 // returns the number of items less than valToFind in array a
@@ -39,7 +41,6 @@ int main (int argc, char * argv[]){
 	
 	// THE REAL PROGRAM IS HERE
     int size = 128;
-    int half = size/2;
     int * a = new int[size];
 	if (my_rank == 0){
         int seed =  71911;
@@ -49,33 +50,35 @@ int main (int argc, char * argv[]){
         for (int x = 0; x<size; x++)
             a[x] = rand() % 500;
 
-
-        cout << "a = [ ";
-        for (int x = 0; x<size - 1; x++)
+        cout << "Before Parallel-MergeSort:\n";
+        cout << " a = [ \t";
+        for (int x = 0; x<size - 1; x++){
             cout << a[x] << ", ";
+            if (x % 32 == 31)
+                cout << "\n\t";
+        }
+            
         cout << a[size-1] << " ]" << endl << endl;
     
     }
 
     MPI_Bcast(a, size, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int * output = new int[size];
-
     pmergesort(a, 0, size-1);
     
     if(my_rank == p-1){
-        cout << "Final Output " << p-1 << " : " << endl;
-        cout << "\ta = [ ";
-        for (int x = 0; x<size - 1; x++)
+        cout << "Final Output brought to you by process " << p-1 << ":" << endl;
+        cout << " a = [ \t";
+        for (int x = 0; x<size - 1; x++){
             cout << a[x] << ", ";
+            if (x % 32 == 31)
+                cout << "\n\t";
+        }
         cout << a[size-1] << " ]" << endl;
     }
 
-    //Delete
+    // Delete
     delete [] a;
-    delete [] output;
-    //delete [] output2;
-
 
 	// Shut down MPI
 	MPI_Finalize();
@@ -90,31 +93,34 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     int p;
     MPI_Comm_size(MPI_COMM_WORLD, &p);
 
-    // n -> a 
+    // # of elements of a
     int n = lasta + 1;
-    // m -> b
+    // # of elements of b
     int m = lastb + 1;
 
     if (output == NULL)
         output = new int[n+m];
+    // Temperary array as to not overright a and b before neccessary
     int * output_temp = new int[n+m];
-    int output_local[n+m] = {}; 
+    // Local versions so that MPI_Allreduce works
+    int output_local[n+m]= {};
+    int ogIndex_local[n+m] = {}; 
     bool originating_local[n+m] = {};
-    int ogIndex_local[n+m] = {};
-
+    //Number of indexes between ranks to find for a[]
     int aGap = max(1, (int)log2(n));
+    //Number of indexes between ranks to find for b[]
     int bGap = max(1, (int)log2(m));
 
     int aRanksToFind = n/aGap;
     int bRanksToFind = m/bGap;
 
-    int  aIndexesToFind[aRanksToFind] = {};
-    for (int i= 0;i<aRanksToFind;i++)
-        aIndexesToFind[i]= i*aGap;
+    // int  aIndexesToFind[aRanksToFind] = {};
+    // for (int i= 0;i<aRanksToFind;i++)
+    //     aIndexesToFind[i]= i*aGap;
     
-    int  bIndexesToFind[bRanksToFind] = {};
-    for (int i= 0;i<bRanksToFind;i++)
-        bIndexesToFind[i]= i*bGap;
+    // int  bIndexesToFind[bRanksToFind] = {};
+    // for (int i= 0;i<bRanksToFind;i++)
+    //     bIndexesToFind[i]= i*bGap;
 
     //A elements ranks in B
     int SRANKA_local[aRanksToFind] = {};
@@ -122,6 +128,7 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     //A elements ranks in B
     int SRANKB_local[bRanksToFind] = {};
 
+    // A process will find all the ranks where my_rank = 
     for (int i = my_rank; i<aRanksToFind; i+=p){
         int valToFind = a[i * aGap];
         int temp = myrank(b, 0, lastb, valToFind);
@@ -146,8 +153,9 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     MPI_Allreduce(&originating_local, &originating, n+m, MPI_C_BOOL, MPI_LXOR, MPI_COMM_WORLD);
     MPI_Allreduce(&ogIndex_local, &ogIndex, n+m, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    int positions[aRanksToFind + bRanksToFind] = {};
-    
+
+    // positions in output that we have already filled
+    int positions[aRanksToFind + bRanksToFind] = {};    
     if(my_rank == 0){
         int y = 0;
         for (int x = 0; x<n+m; x++)
@@ -156,14 +164,13 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
                 y++;
             }
     }
-    
     MPI_Bcast(&positions, aRanksToFind + bRanksToFind, MPI_INT, 0, MPI_COMM_WORLD);
 
+    //fill in shapes by finding the 4 indexes that bound them and smerging
     for (int i = my_rank; i<aRanksToFind + bRanksToFind; i+=p){
         //shape "corners"
         int a1index, a2index, b1index, b2index;
         //lines
-
         int top = positions[i];
         int bottom;
         if (i == aRanksToFind + bRanksToFind - 1)
@@ -194,8 +201,6 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     
         }
     }
-
-    int temp[n+m] = {};
     MPI_Allreduce(output_temp, output, n+m, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
     /*
@@ -210,19 +215,20 @@ void pmerge(int * a, int * b, int lasta, int lastb, int * output)
     delete [] output_temp;
 }
 
-//first and last are index #s
-void mergesort(int * a, int first, int last){
-    if (first<last){//if a[] is longer than 1
-        int middle = (first + last)/2;
-        int lastA = middle - first;
-        int firstB = middle + 1;
-        int lastB = last - firstB;
-        mergesort(&a[first], 0, lastA); // recurse first half
-        mergesort(&a[firstB], 0, lastB); // recurse second half
-        smerge(&a[first], &a[firstB], lastA, lastB, &a[first]);// merge two sorted arrays
-    }
-    return;
-}
+// //first and last are index #s
+// void mergesort(int * a, int first, int last){
+//     if (first<last){//if a[] is longer than 1
+//         int middle = (first + last)/2;
+//         int lastA = middle - first;
+//         int firstB = middle + 1;
+//         int lastB = last - firstB;
+//         mergesort(&a[first], 0, lastA); // recurse first half
+//         mergesort(&a[firstB], 0, lastB); // recurse second half
+//         smerge(&a[first], &a[firstB], lastA, lastB, &a[first]);// merge two sorted arrays
+//     }
+//     return;
+// }
+
 void pmergesort(int * a, int first, int last){
     if (first<last){//if a[] is longer than 1
         int middle = (first + last)/2;
@@ -288,7 +294,7 @@ int myrank(int * a, int first, int last, int valToFind){
         if (valToFind<a[first + x -1]) val = myrank(a, first, first + x-1,valToFind);
         if (valToFind>=a[first + x -1]) val = x + myrank(a, first + x, last,valToFind);
     }
-    
+
     return val;
 }
 
