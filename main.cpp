@@ -40,7 +40,16 @@ int main (int argc, char * argv[]){
 	MPI_Comm_size(MPI_COMM_WORLD, &p);
 	
 	// THE REAL PROGRAM IS HERE
-    int size = 128;
+    int size = 0;
+
+    if(my_rank == 0){
+        cout << "Enter a size for your array : ";
+        cin >> size;
+    }
+
+    MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);              
+    
+
     int * a = new int[size];
 	if (my_rank == 0){
         int seed =  71911;
